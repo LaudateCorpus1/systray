@@ -300,6 +300,11 @@ void add_or_update_submenu_item(int submenuId, int menuId, char *title, char *to
   runInMainThread(@selector(addOrUpdateSubmenuItem:), (id)item);
 }
 
+const char *get_version() {
+  NSString *version = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"];
+  return [version UTF8String];
+}
+
 const char *get_git_hash() {
   NSString *path = [[NSBundle mainBundle] pathForResource:@"Git" ofType:@"plist"];
   NSDictionary *gitPlist = [[NSDictionary alloc] initWithContentsOfFile:path];

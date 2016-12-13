@@ -42,6 +42,12 @@ func SetTooltip(tooltip string) {
 	C.setTooltip(C.CString(tooltip))
 }
 
+// GetVersion returns the version number of the calling app
+func GetVersion() string {
+	cstr := C.get_version()
+	return C.GoString(cstr)
+}
+
 // GetGitHash returns the git hash of the current project
 func GetGitHash() string {
 	cstr := C.get_git_hash()
