@@ -6,11 +6,8 @@ Methods can be called from any goroutine except Run(), which should be called at
 package systray
 
 import (
-	"runtime"
 	"sync"
 	"sync/atomic"
-
-	"github.com/getlantern/golog"
 )
 
 // MenuItem is used to keep track each menu item of systray
@@ -21,6 +18,8 @@ type MenuItem struct {
 
 	// id uniquely identify a menu item, not supposed to be modified
 	id int32
+	// submenuId identifies the submenu this item is under
+	submenuId int32
 	// title is the text shown on menu item
 	title string
 	// tooltip is the text shown when pointing to menu item
@@ -29,15 +28,23 @@ type MenuItem struct {
 	disabled bool
 	// checked menu item has a tick before the title
 	checked bool
+	// separator menu items are just visual separators
+	separator bool
+
+	// submenu designates a menu item as a submenu
+	submenu bool
+}
+
+func (i *MenuItem) GetId() int32 {
+	return i.id
 }
 
 var (
-	log = golog.LoggerFor("systray")
-
 	readyCh       = make(chan interface{})
 	clickedCh     = make(chan interface{})
 	menuItems     = make(map[int32]*MenuItem)
 	menuItemsLock sync.RWMutex
+	menuOpened    func()
 
 	currentID int32
 )
@@ -46,14 +53,19 @@ var (
 // callback.
 // It blocks until systray.Quit() is called.
 // Should be called at the very beginning of main() to lock at main thread.
-func Run(onReady func()) {
-	runtime.LockOSThread()
+func Run(onReady func(interface{}), object interface{}) {
+	menuOpened = func() {}
+
 	go func() {
 		<-readyCh
-		onReady()
+		onReady(object)
 	}()
 
 	nativeLoop()
+}
+
+func SetMenuOpened(handler func()) {
+	menuOpened = handler
 }
 
 // Quit the systray
@@ -67,7 +79,37 @@ func Quit() {
 // It can be safely invoked from different goroutines.
 func AddMenuItem(title string, tooltip string) *MenuItem {
 	id := atomic.AddInt32(&currentID, 1)
-	item := &MenuItem{nil, id, title, tooltip, false, false}
+	item := &MenuItem{nil, id, 0, title, tooltip, false, false, false, false}
+	item.ClickedCh = make(chan interface{})
+	item.update()
+	return item
+}
+
+// AddSeparator is like AddMenuItem except it adds a visual separator
+func AddSeparator() *MenuItem {
+	id := atomic.AddInt32(&currentID, 1)
+	item := &MenuItem{nil, id, 0, "", "", false, false, true, false}
+	item.ClickedCh = make(chan interface{})
+	item.update()
+	return item
+}
+
+// AddSubmenu is like AddMenuItem except it adds a submenu.
+// Note that clicks on submenu's do nothing and so listening
+// to the clicked channel will never yield any events.
+func AddSubmenu(title, tooltip string) *MenuItem {
+	id := atomic.AddInt32(&currentID, 1)
+	item := &MenuItem{nil, id, 0, title, tooltip, false, false, false, true}
+	item.ClickedCh = make(chan interface{})
+	item.update()
+	return item
+}
+
+// AddSubmenuItem is like AddMenuItem except that it adds
+// new menu item under an existing submenu.
+func AddSubmenuItem(submenuId int32, title, tooltip string) *MenuItem {
+	id := atomic.AddInt32(&currentID, 1)
+	item := &MenuItem{nil, id, submenuId, title, tooltip, false, false, false, false}
 	item.ClickedCh = make(chan interface{})
 	item.update()
 	return item
@@ -124,7 +166,15 @@ func (item *MenuItem) update() {
 	menuItemsLock.Lock()
 	defer menuItemsLock.Unlock()
 	menuItems[item.id] = item
-	addOrUpdateMenuItem(item)
+	if item.submenuId != 0 {
+		addOrUpdateSubmenuItem(item)
+	} else if item.submenu {
+		addOrUpdateSubmenu(item)
+	} else if item.separator {
+		addSeparator(item)
+	} else {
+		addOrUpdateMenuItem(item)
+	}
 }
 
 func systrayReady() {

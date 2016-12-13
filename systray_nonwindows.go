@@ -42,6 +42,34 @@ func SetTooltip(tooltip string) {
 	C.setTooltip(C.CString(tooltip))
 }
 
+// GetVersion returns the version number of the calling app
+func GetVersion() string {
+	cstr := C.get_version()
+	return C.GoString(cstr)
+}
+
+// GetGitHash returns the git hash of the current project
+func GetGitHash() string {
+	cstr := C.get_git_hash()
+	return C.GoString(cstr)
+}
+
+// GetUserSetting returns the string value of a user setting
+func GetUserSetting(name string) string {
+	cstr := C.get_user_setting(C.CString(name))
+	return C.GoString(cstr)
+}
+
+// SetUserSetting sets the string value of a user setting
+func SetUserSetting(name, value string) {
+	C.set_user_setting(C.CString(name), C.CString(value))
+}
+
+// Hang sleeps for a indefinite amount of time
+func Hang() {
+	C.hang()
+}
+
 func addOrUpdateMenuItem(item *MenuItem) {
 	var disabled C.short
 	if item.disabled {
@@ -60,6 +88,37 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	)
 }
 
+func addSeparator(item *MenuItem) {
+	C.add_separator(C.int(item.id))
+}
+
+func addOrUpdateSubmenu(item *MenuItem) {
+	C.add_or_update_submenu(
+		C.int(item.id),
+		C.CString(item.title),
+		C.CString(item.tooltip),
+	)
+}
+
+func addOrUpdateSubmenuItem(item *MenuItem) {
+	var disabled C.short
+	if item.disabled {
+		disabled = 1
+	}
+	var checked C.short
+	if item.checked {
+		checked = 1
+	}
+	C.add_or_update_submenu_item(
+		C.int(item.submenuId),
+		C.int(item.id),
+		C.CString(item.title),
+		C.CString(item.tooltip),
+		disabled,
+		checked,
+	)
+}
+
 //export systray_ready
 func systray_ready() {
 	systrayReady()
@@ -68,4 +127,9 @@ func systray_ready() {
 //export systray_menu_item_selected
 func systray_menu_item_selected(cID C.int) {
 	systrayMenuItemSelected(int32(cID))
+}
+
+//export systray_menu_opened
+func systray_menu_opened() {
+	menuOpened()
 }
