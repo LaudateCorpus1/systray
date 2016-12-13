@@ -150,6 +150,27 @@ void add_or_update_menu_item(int menu_id, char* title, char* tooltip, short disa
 	g_idle_add(do_add_or_update_menu_item, mii);
 }
 
+void add_separator(int menuId) {}
+void add_or_update_submenu(int menuId, char *title, char *tooltip) {
+  free(title);
+  free(tooltip);
+}
+void add_or_update_submenu_item(int submenuId, int menuId, char *title, char *tooltip, short disabled, short checked) {
+  free(title);
+  free(tooltip);
+}
+const char *get_version() { return ""; }
+const char *get_git_hash() { return ""; }
+const char *get_user_setting(char *name) {
+  free(name);
+  return "";
+}
+void set_user_setting(char *name, char *value) {
+  free(name);
+  free(value);
+}
+void hang() {}
+
 void quit() {
 	g_idle_add(do_quit, NULL);
 }
